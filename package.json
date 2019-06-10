@@ -1,0 +1,31 @@
+{
+  "name": "weekly-publish",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "nodemon ./index.js",
+    "start": "forever start ./index.js",
+    "stop": "forever stop ./index.js"
+  },
+  "dependencies": {
+    "async": "^2.6.2",
+    "baidu-aip-sdk": "^2.3.9",
+    "emailjs": "^2.2.0",
+    "forever": "^1.0.0",
+    "imap": "^0.8.19",
+    "koa": "^2.3.0",
+    "koa-generic-session": "^2.0.0",
+    "koa-multer": "^1.0.2",
+    "koa-router": "^7.2.1",
+    "koa-sqlite3-session": "^1.0.3",
+    "koa-static": "^4.0.1",
+    "lodash": "^4.17.4",
+    "mailparser": "^2.6.0",
+    "moment": "^2.19.2",
+    "nodemon": "^1.18.11",
+    "socket.io": "^2.0.3"
+  },
+  "author": "xianghuijin",
+  "license": "ISC"
+}

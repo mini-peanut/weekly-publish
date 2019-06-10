@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>add-post</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.4.0/css/font-awesome.min.css" rel="stylesheet" type="text/css" />
+    <link href="/assets/jquery.loading.css" rel="stylesheet" type="text/css" />
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+        }
+        #add-weekly {
+            width: 500px;
+            margin: 20px auto;
+            display: flex;
+            flex-direction: column;
+        }
+        #add-weekly > div {
+            display: flex;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+        #add-weekly > div label{
+            width: 100px;
+            flex-shrink: 0
+        }
+        input, textarea {
+            display: inline;
+            height: 30px;
+            min-width: 180px;
+            max-height: 36px;
+            -webkit-box-sizing: border-box;
+            box-sizing: border-box;
+            padding: 0 10px;
+            border: 1px solid #bbb;
+            color: #333;
+            font-size: 12px;
+            border-radius: 2px;
+            box-shadow: none;
+            transition: border .2s ease-in-out,box-shadow .2s ease-in-out;
+            width: 300px;
+            margin-bottom: 20px;
+            position: relative;
+        }
+        input:focus, textarea:focus{
+            outline: none;
+            border: 1px solid #38f;
+            box-shadow: 0 0 5px #bdf;
+        }
+        textarea {
+            height: 200px;
+            max-height: 360px;
+        }
+        .button {
+            color: #38f;
+            border: 1px solid #38f;
+            background: #fff;
+            display: inline-block;
+            height: 30px;
+            line-height: 30px;
+            padding: 0 15px;
+            border-radius: 2px;
+            font-size: 12px;
+            font-family: inherit;
+            text-align: center;
+            vertical-align: middle;
+            -webkit-box-sizing: border-box;
+            box-sizing: border-box;
+            cursor: pointer;
+            -webkit-transition: all .3s;
+            transition: all .3s;
+            margin-right: 20px;
+        }
+
+        .button:active {
+            color: #27f;
+            background: #e5e5e5;
+            border-color: #27f;
+        }
+    </style>
+</head>
+<body>
+<div id="add-weekly"></div>
+<script id="tpl-add-weekly" type="application/template">
+    <div>
+        <label for="type">周刊类型：</label>
+        <select name="project" id="type">
+            <option value="深阅读">深阅读</option>
+            <option value="新鲜货" selected="selected">新鲜货</option>
+            <option value="职业发展" >职业发展</option>
+        </select>
+    </div>
+    <div class="title">
+        <label for="title">标题</label>
+        <input type="text" id="title" value="<%= title%>">
+    </div>
+    <div class="url">
+        <label for="url">地址</label>
+        <input type="text" id="url" value="<%= url%>">
+    </div>
+    <div class="content">
+        <label for="content">推荐理由</label>
+        <textarea id="content"><%= content%></textarea>
+    </div>
+    <div class="user">
+        <label for="user">邮箱前缀</label>
+        <input type="text" id="user" value="<%= user%>">
+    </div>
+    <div class="password">
+        <label for="password">密码</label>
+        <input type="password" id="password" value="<%= password%>">
+    </div>
+    <div class="footer">
+        <div class="button" onclick="sendEmail()">发送email</div>
+        <div class="button" onclick="spellDetection()">拼写检测</div>
+    </div>
+    <div class="progress">
+        进度：<%= progress%>
+    </div>
+    <% if (speckCheckResult) { %>
+        <div class="check-result">
+            <label>检测结果：</label><div><%= speckCheckResult %></div>
+        </div>
+    <% } %>
+    <% if (checkScore !== '') { %>
+    <div>
+        <label>检测置信度：</label><div><%= checkScore * 100 + '%' %></div>
+    </div>
+    <% } %>
+</script>
+<script src="/assets/jquery.min.js"></script>
+<script src="/assets/jquery.loading.min.js"></script>
+<script src="/assets/lodash.min.js"></script>
+<script src="/assets/moment.min.js"></script>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+    let type = '新鲜货';
+    let title = '';
+    let url = '';
+    let content = '';
+    let user = '';
+    let password = '';
+    let progress = '';
+    let speckCheckResult = '';
+    let checkScore = '';
+    let sendTo = '';
+
+    const socket = io();
+    autoRefresh();
+
+    function syncBaseInfo () {
+        type = $("select[id='type']").val();
+        title = $("input[id='title']").val();
+        url = $("input[id='url']").val();
+        content = $("textarea[id='content']").val();
+        user = $("input[id='user']").val();
+        password = $("input[id='password']").val();
+    }
+
+    function renderAddWeekly() {
+        const renderTpl = _.template($('#tpl-add-weekly').html());
+        const html = renderTpl({type, title, url, content, user, password, progress, speckCheckResult});
+        $('#add-weekly').html(html);
+    }
+
+    function autoRefresh() {
+        /**
+         * 渲染基础信息
+         */
+        renderAddWeekly();
+
+        socket.on('update progress', function (_progress) {
+            progress = _progress;
+            renderAddWeekly()
+        });
+        socket.on('spell check result', function (result) {
+            if (!result.item) {
+                return alert(result.error_msg)
+            }
+
+            checkScore = result.item.score;
+            let checkResultDom = $('<div></div>');
+            let endPos = 0;
+            let restText = result.text;
+
+            for (let item of result.item.vec_fragment) {
+                const beforeCorrectText = substrByByte(restText, item.begin_pos - endPos);
+                restText = restText.replace(beforeCorrectText + item.ori_frag, '');
+
+                const beforeCorrect = $(`<span>${beforeCorrectText}</span>`);
+                const oriFrag = $(`<del style="color: red;">${item.ori_frag}</del>`);
+                const corrFrag = $(`<span style="color: #58a275;">${item.correct_frag}</span>`);
+
+                checkResultDom.append(beforeCorrect);
+                checkResultDom.append(oriFrag);
+                checkResultDom.append(corrFrag)
+            }
+
+            restText && checkResultDom.append($(`<span>${restText}</span>`));
+
+            speckCheckResult = checkResultDom.html();
+            renderAddWeekly();
+        });
+
+        socket.on('dnn check', function (result) {
+            console.log(result)
+        });
+
+        socket.on('base info', function (baseInfo) {
+            sendTo = baseInfo.admin;
+        });
+    }
+
+    function spellDetection() {
+        syncBaseInfo();
+        socket.emit('spell check', content)
+    }
+    function sendEmail() {
+        syncBaseInfo();
+
+        if ([type, title, content, url, user, password].some(val => !val)) {
+            return alert('请输入完整信息')
+        }
+
+        if (confirm(`确认发送邮件吗？\n发件人: ${user} \n收件人：${sendTo} \n`)) {
+            $('body').loading({
+                stoppable: true,
+                message: '邮件发送中...',
+                onStart: function(loading) {
+                    loading.overlay.slideDown(400);
+                },
+                onStop: function(loading) {
+                    loading.overlay.slideUp(400);
+                }
+            });
+
+            const content = formatWeekly();
+            const sendCC = '';
+
+            socket.emit('send weekly', {user, password, content, sendTo, sendCC});
+            socket.on('send end', function () {
+                $('body').loading('stop')
+            })
+        }
+    }
+
+    function formatWeekly () {
+        const result = $('<div></div>');
+        const category = $(`<h4><b>## ${type}</b></h4>`);
+        const header = $(`<h4>#### [${title}](${url})</h4>`);
+        const recommend = $(`<p>推荐理由：${content}</p>`);
+        const fontFamily = 'TimesNewRomanPS-ItalicMT,PingFang SC,Lantinghei SC,Microsoft Yahei,Hiragino Sans GB';
+
+        header.css({
+            'font-family': fontFamily,
+            '-webkit-font-smoothing': 'initial',
+            'font-weight': 100,
+            'line-height': 1.35,
+            'font-variant-numeric': 'lining-nums',
+            'margin-bottom': '1em'
+        });
+
+        result.append(category);
+        result.append(header);
+        result.append(recommend);
+
+        return result.html()
+    }
+
+    /**
+     * 按字节截取字符串
+
+
+     * 如果不能刚好截取的话，则多截取一个字节。如：“ab好啊cd” 要截取3个字节，则结果为“ab好”。
+     * 如果你想少个字节的话，使用如下的代码：
+     * return (source+'').substr(0,length).replace(/([^\x00-\xff])/g,' $1').substr(0,length).replace(/ ([^\x00-\xff])/g,'$1');
+     *
+     * @param {string} source 需要被截取的字符串
+     * @param {number} length 需要截取的宽度
+     * @return {string} 返回截取结果
+     */
+    function substrByByte (source, length){
+        return (source+'').substr(0, length).replace(/([^\x00-\xff])/g,'$1 ').substr(0,length).replace(/([^\x00-\xff]) /g,'$1');
+    }
+</script>
+</body>
+</html>

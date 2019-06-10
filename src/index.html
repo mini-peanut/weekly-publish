@@ -1,0 +1,408 @@
+<!doctype html>
+<html>
+<head>
+    <title>better-fe周刊</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.4.0/css/font-awesome.min.css" rel="stylesheet" type="text/css" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.25.0/codemirror.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/froala-editor@2.9.5/css/froala_editor.pkgd.min.css" rel="stylesheet" type="text/css" />
+    <link href="https://cdn.jsdelivr.net/npm/froala-editor@2.9.5/css/froala_style.min.css" rel="stylesheet" type="text/css" />
+    <link href="/assets/jquery.loading.css" rel="stylesheet" type="text/css" />
+    <style>
+        html {
+            color: #333;
+            font-family: -apple-system,system-ui,BlinkMacSystemFont,Helvetica Neue,PingFang SC,Hiragino Sans GB,serif;
+            font-size: 12px;
+            line-height: 1.2;
+            text-rendering: optimizeLegibility
+        }
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Monaco,Menlo,Ubuntu Mono,Consolas,source-code-pro,monospace;
+            font-size: 1.167rem;
+            line-height: 1.7;
+        }
+        main {
+            display: flex;
+            box-sizing: border-box;
+        }
+
+        #weekly-editor {
+            width: 50vw;
+            height: 100vh;
+            background: #f8f9fa;
+            font-family: Monaco,Menlo,Ubuntu Mono,Consolas,source-code-pro,monospace;
+            overflow: scroll;
+            border-right: 1px solid #f5f5f5;
+        }
+
+        #weekly-grab-detail {
+            padding: 20px;
+            width: 50vw;
+        }
+        .button {
+            color: #38f;
+            border: 1px solid #38f;
+            background: #fff;
+            display: inline-block;
+            height: 30px;
+            line-height: 30px;
+            padding: 0 15px;
+            border-radius: 2px;
+            font-size: 12px;
+            font-family: inherit;
+            text-align: center;
+            vertical-align: middle;
+            -webkit-box-sizing: border-box;
+            box-sizing: border-box;
+            cursor: pointer;
+            -webkit-transition: all .3s;
+            transition: all .3s;
+        }
+
+        .button:active {
+            color: #27f;
+            background: #e5e5e5;
+            border-color: #27f;
+        }
+        .send-email, .sync-to-juejin {
+            margin-bottom: 20px;
+        }
+        .checkbox-wrap {
+            display: inline-block;
+            cursor: pointer;
+            font-weight: 400;
+            line-height: 14px;
+            padding: 0;
+            margin: 0 15px 15px 0;
+            vertical-align: middle;
+        }
+        .checkbox {
+            position: relative;
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            white-space: nowrap;
+            outline: none;
+            vertical-align: middle;
+            line-height: 1;
+            margin: 0;
+            padding: 0;
+        }
+        .checkbox-inner {
+            position: relative;
+            top: 0;
+            left: 0;
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border-radius: 2px;
+            border: 1px solid #bbb;
+            background: #fff;
+            box-sizing: border-box;
+            transition: all .3s;
+        }
+        .checkbox-inner:after {
+            box-sizing: content-box;
+            position: absolute;
+            display: block;
+            content: " ";
+            font-size: 0;
+            top: 3px;
+            left: 2px;
+            width: 6px;
+            height: 3px;
+            background: transparent;
+            border: 2px solid #fff;
+            border-top: none;
+            border-right: none;
+            transition: all .12s ease-in-out;
+            transform: rotate(-45deg) scale(1);
+        }
+        .checkbox input {
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            top: 0;
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            opacity: 0;
+            cursor: pointer;
+        }
+        .checkbox-checked >.checkbox >.checkbox-inner {
+            border-color: #27f;
+            background: #38f;
+        }
+        .input {
+            display: inline;
+            height: 30px;
+            min-width: 80px;
+            max-height: 36px;
+            -webkit-box-sizing: border-box;
+            box-sizing: border-box;
+            padding: 0 10px;
+            border: 1px solid #bbb;
+            color: #333;
+            font-size: 12px;
+            border-radius: 2px;
+            box-shadow: none;
+            transition: border .2s ease-in-out,box-shadow .2s ease-in-out;
+            width: 200px;
+            margin-bottom: 20px;
+            position: relative;
+        }
+        .input:focus {
+            outline: none;
+            border: 1px solid #38f;
+            box-shadow: 0 0 5px #bdf;
+        }
+        .progress-tip span {
+            color: #cc5038;
+        }
+    </style>
+</head>
+<body>
+<main>
+    <div id="weekly-editor"></div>
+    <div id="weekly-grab-detail">
+        <div id="sync-info"></div>
+    </div>
+</main>
+
+<script type="application/template" id="tpl-sync-info">
+    <div>
+        邮箱：<input type="text" class="input" name="user" placeholder="请输入发件人邮箱" value="<%= user%>">
+    </div>
+    <div>
+        密码：<input type="password" class="input" name="password" placeholder="请输入密码" value="<%= password%>">
+    </div>
+    <div class="send-email button" onclick="grabEmail()">同步邮件</div>
+    <div class="send-email button" onclick="sendEmail()">发送邮件</div>
+    <div class="sync-to-juejin button" onclick="syncToJuejin()">掘金发布</div>
+    <% if (progress) { %>
+        <div class="progress-tip">当前进度：<span><%- progress %></span></div>
+        <div class="rest-author">剩余同学：<%- restUsers %> </div>
+    <% } %>
+    <% if (repeatWeekly) { %>
+        <div class="progress-tip"><div>重复周刊：</div><span><%- repeatWeekly %></span></div>
+    <% } %>
+</script>
+<script src="/assets/jquery.min.js"></script>
+<script src="/assets/jquery.loading.min.js"></script>
+<script src="/assets/lodash.min.js"></script>
+<script src="/assets/moment.min.js"></script>
+<script src='/assets/froala_editor.min.js'></script>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+    let users = [];
+    let progress = '';
+    let weeklyObj = {};
+    let sendTo = '';
+    let sendCC = '';
+    let user = '';
+    let password = '';
+    let restUsers = '';
+    let juejinUrl = '';
+    let repeatWeekly = '';
+
+
+    const Email = 0;
+    const Juejin = 1;
+
+    const socket = io();
+    autoRefresh();
+
+    function renderWeeklyEditor() {
+        $('#weekly-editor').froalaEditor('html.set', formatWeekly(Email));
+    }
+
+    function renderBaseInfo() {
+        const renderTpl = _.template($('#tpl-sync-info').html());
+        const html = renderTpl({progress, users, sendTo, sendCC, user, password, restUsers});
+        $('#sync-info').html(html);
+    }
+
+    function grabEmail() {
+        syncBaseInfo();
+
+        if (!user) {
+            return alert('请输入发件人邮箱')
+        }
+
+        if (!password) {
+            return alert('请输入密码')
+        }
+
+        weeklyObj = {};
+        socket.emit('grab weekly', {user, password})
+    }
+
+    function sendEmail() {
+        syncBaseInfo();
+        if (!user) {
+            return alert('请输入发件人邮箱')
+        }
+        if (!password) {
+            return alert('请输入密码')
+        }
+        juejinUrl = prompt("请输入掘金发布地址");
+        if (!juejinUrl) {
+            return
+        }
+        renderWeeklyEditor();
+
+        setTimeout(confirmSend, 200);
+
+        function confirmSend () {
+            const content = $('#weekly-editor').froalaEditor('html.get');
+
+            if (confirm(`确认发送邮件吗？\n发件人: ${user} \n收件人：${sendTo}\n抄送：${sendCC}\n掘金地址：${juejinUrl}`)) {
+                $('body').loading({
+                    stoppable: true,
+                    message: '邮件发送中...',
+                    onStart: function(loading) {
+                        loading.overlay.slideDown(400);
+                    },
+                    onStop: function(loading) {
+                        loading.overlay.slideUp(400);
+                    }
+                });
+
+                socket.emit('send weekly', {user, password, content, sendTo, sendCC});
+                socket.on('send end', function () {
+                    $('body').loading('stop')
+                })
+            }
+        }
+    }
+
+    function syncToJuejin() {
+        const content = formatWeekly(Juejin)
+            .replace(/<\/[^>]*>/g, "\n")
+            .replace(/<[^>]*>/g, "\n");
+
+        syncBaseInfo();
+        copyToClipboard(content);
+
+        setTimeout(function () {
+            if (confirm('内容已经输入到了剪贴板，确认跳转到掘金发布？')) {
+                window.open("https://juejin.im/editor/drafts/new","_blank")
+            }
+        }, 200)
+    }
+
+    function autoRefresh() {
+        $('#weekly-editor').froalaEditor({height: '100vh'});
+        /**
+         * 渲染基础信息
+         */
+        renderBaseInfo();
+
+        socket.emit('grab base info');
+
+        socket.on('base info', function (baseInfo) {
+            users = baseInfo.users;
+
+            if (!sendTo) {
+                sendTo = baseInfo.to;
+            }
+
+            if (!sendCC) {
+                sendCC = baseInfo.cc;
+            }
+            renderBaseInfo()
+        });
+
+        socket.on('update progress', function (_progress) {
+            progress = _progress;
+            renderBaseInfo()
+        });
+
+        socket.on('add weekly', function (weekly = {}) {
+            if (!weekly) {
+                return
+            }
+            const {category, title, url, recommend, userName} = weekly;
+
+            if (!weeklyObj[category]) {
+                weeklyObj[category] = []
+            }
+            const allWeekly = Object.values(weeklyObj).reduce((ret, item) => [...ret, ...item], []);
+            if (allWeekly.some(item => item.url === url)) {
+                repeatWeekly += `${title} : ${url} \n`
+            }
+
+            weeklyObj[category].push({userName, category, title, recommend, url});
+
+            users = users.filter(val => val !== userName);
+            restUsers = users.length ? users.reduce((ret, author) => (ret = ret + author + ','), '') : '无';
+            renderBaseInfo();
+            renderWeeklyEditor()
+        });
+    }
+
+    function formatWeekly (mode) {
+        /**
+         * 设置内联样式，方便邮件发送
+         */
+        const hStyle = "font-family: TimesNewRomanPS-ItalicMT,PingFang SC,Lantinghei SC,Microsoft Yahei,Hiragino Sans GB;-webkit-font-smoothing: initial;font-weight: 100;line-height: 1.35,font-variant-numeric: lining-nums;margin-bottom: 1em;";
+        const aStyle = "border-bottom: 1px solid #1abc9c; text-decoration: none; color: #1abc9c;";
+        let title = `<h2 style="">better-fe 技术周刊 - ${moment().format('YYYY/MM/DD')}</h2>`;
+
+        let linkToJuejin = `<h4 style="${hStyle}"><b>掘金地址 点击<a href="${juejinUrl}" style="${aStyle}">这里</a> 跳转</b></h4>`;
+        let content =
+            _.entries(weeklyObj).reduce((ret, [category, cWeekly]) => {
+                ret += '<div>';
+                ret += `<h4 style="${hStyle}"><b>## ${category}</b></h4>`;
+
+                return ret + cWeekly.reduce((cRet, {title, url, recommend, userName}) => {
+                    let header;
+                    if (mode === Email) {
+                        header = `<a href="${url}" style="${aStyle}">${title}</a> @${userName}`
+                    }
+                    else {
+                        header = `#### [${title}](${url})`
+                    }
+                    return cRet + `<h4 style="${hStyle}">${header}</h4><p>${recommend}</p>`
+                }, '')
+            }, '');
+
+        if (mode === Email) {
+            return _.trim(title + linkToJuejin + content)
+        }
+
+        return _.trim(title + content)
+    }
+
+    function syncBaseInfo () {
+        user = $("input[name='user']").val();
+        password = $("input[name='password']").val();
+    }
+
+    function copyToClipboard(text) {
+        // all other modern
+        let target = document.createElement("textarea");
+        target.style.position = "absolute";
+        target.style.left = "-9999px";
+        target.style.top = "0";
+        target.textContent = text;
+        document.body.appendChild(target);
+        target.focus();
+        target.setSelectionRange(0, target.value.length);
+
+        // copy the selection of fall back to prompt
+        try {
+            document.execCommand("copy");
+            target.remove();
+        } catch(e) {
+            console.log("Can't copy string on this browser. Try to use Chrome, Firefox or Opera.");
+            window.prompt("Copy to clipboard: Ctrl+C, Enter", text);
+        }
+    }
+</script>
+</body>
+</html>
