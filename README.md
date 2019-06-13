@@ -18,6 +18,8 @@ ps: *127.0.0.1替换为自个配置内网域名*
 ### Start
 
 ```node
+git clone https://github.com/mini-peanut/weekly-publish.git
+cd weekly-publish
 npm i && npm run dev
 ```
 
