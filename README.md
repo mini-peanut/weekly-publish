@@ -15,7 +15,7 @@
 <img src="./public/weekly-publish.png" />
 
 ps: *127.0.0.1替换为自个配置内网域名*
-### Start
+### ⌨️ Development
 
 ```node
 git clone https://github.com/mini-peanut/weekly-publish.git
@@ -48,6 +48,6 @@ format | 对邮件内容进行格式化，提取有用信息 | function(headers,
 2. 管理员通过访问 127.0.0.1:8886 收集其他同事的周刊并整理成一份，用于发布邮件和掘金
 3. 可查看效果
 
-### Link
+### 🔗 Links
 
 [掘金地址](https://juejin.im/user/5bfd30cd6fb9a049bb7c064d)
