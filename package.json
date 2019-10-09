@@ -20,7 +20,7 @@
     "koa-router": "^7.2.1",
     "koa-sqlite3-session": "^1.0.3",
     "koa-static": "^4.0.1",
-    "lodash": "^4.17.4",
+    "lodash": "^4.17.13",
     "mailparser": "^2.6.0",
     "moment": "^2.19.2",
     "nodemon": "^1.18.11",
